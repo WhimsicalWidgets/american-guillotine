@@ -1,0 +1,39 @@
+<html>
+<head>
+  <title>Charlie's Platformer Adventure</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      position: fixed; /* Prevents bounce on iOS */
+    }
+    
+    canvas {
+      touch-action: none; /* Prevents default touch behaviors */
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <script type="module">
+    import { Game } from './game.js';
+    
+    const canvas = document.getElementById('gameCanvas');
+    const game = new Game(canvas);
+    game.start();
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 export class Player {
   constructor(x, y) {
-    this.name = "Charlie";
+    this.name = "Oligarchy";
     this.initialX = x;
     this.initialY = y;
     this.x = x;

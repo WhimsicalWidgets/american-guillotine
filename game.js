@@ -70,6 +70,10 @@ export class Game {
     this.camera = new Camera();
     this.touchControls = new TouchControls();
     
+    this.observerMode = false;
+    this.qrCodeImage = null;
+    this.generateQRCode();
+    
     window.addEventListener('resize', () => this.setCanvasSize());
     this.setupControls();
   }
@@ -105,6 +109,27 @@ export class Game {
     });
   }
 
+  async generateQRCode() {
+    const url = window.location.href;
+    try {
+      const qrcode = await import('https://cdn.skypack.dev/qrcode');
+      const qrDataUrl = await qrcode.toDataURL(url, {
+        width: 128,
+        margin: 2,
+        color: {
+          dark: '#000',
+          light: '#fff'
+        }
+      });
+      
+      // Create and load image
+      this.qrCodeImage = new Image();
+      this.qrCodeImage.src = qrDataUrl;
+    } catch (err) {
+      console.error('Failed to generate QR code:', err);
+    }
+  }
+
   setCanvasSize() {
     // Use device pixel ratio for sharp rendering on mobile
     const dpr = window.devicePixelRatio || 1;
@@ -120,7 +145,13 @@ export class Game {
 
   setupControls() {
     this.keys = {};
-    window.addEventListener('keydown', (e) =>!this.keys[e.code] ? this.keys[e.code] = true : null);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyO') {
+        this.observerMode = !this.observerMode;
+      } else if (!this.keys[e.code]) {
+        this.keys[e.code] = true;
+      }
+    });
     window.addEventListener('keyup', (e) => this.keys[e.code] = false);
 
     // Prevent default touch behaviors
@@ -129,8 +160,8 @@ export class Game {
   }
 
   update() {
-    // Handle controls
-    if (!this.player.isDead) {
+    // Only handle controls when not in observer mode
+    if (!this.observerMode) {
       if (this.keys['ArrowLeft'] || this.keys['KeyA']) {
         this.player.moveLeft();
       }
@@ -147,20 +178,21 @@ export class Game {
       if (touchInput.jump) this.player.jump();
     }
 
-    // Update player
-    this.player.update();
-    
-    // Send player state to other clients
-    if (this.room) {
-      this.room.updatePresence({
-        x: this.player.x,
-        y: this.player.y,
-        velocityX: this.player.velocityX,
-        velocityY: this.player.velocityY,
-        isDead: this.player.isDead,
-        headOffset: this.player.headOffset,
-        hairSwirl: this.player.hairSwirl
-      });
+    // Update player and send state only when not observing
+    if (!this.observerMode) {
+      this.player.update();
+      
+      if (this.room) {
+        this.room.updatePresence({
+          x: this.player.x,
+          y: this.player.y,
+          velocityX: this.player.velocityX,
+          velocityY: this.player.velocityY,
+          isDead: this.player.isDead,
+          headOffset: this.player.headOffset,
+          hairSwirl: this.player.hairSwirl
+        });
+      }
     }
 
     // Update guillotines and check collisions for all players
@@ -193,8 +225,8 @@ export class Game {
       this.player.isJumping = false;
     }
 
-    // Update camera - now follows local player only
-    this.camera.update(this.player);
+    // Update camera with observer mode state
+    this.camera.update(this.player, this.observerMode);
   }
 
   render() {
@@ -210,16 +242,28 @@ export class Game {
     // Draw guillotines
     this.guillotines.forEach(guillotine => guillotine.draw(this.ctx));
     
-    // Draw all players
-    this.player.draw(this.ctx);
+    // Draw player only if not in observer mode
+    if (!this.observerMode) {
+      this.player.draw(this.ctx);
+    }
+
+    // Draw other players
     for (const otherPlayer of this.otherPlayers.values()) {
       otherPlayer.draw(this.ctx);
     }
 
     this.ctx.restore();
 
-    // Draw touch controls
-    this.touchControls.draw(this.ctx);
+    // Draw touch controls only when not in observer mode
+    if (!this.observerMode) {
+      this.touchControls.draw(this.ctx);
+    }
+
+    // Draw QR code when in observer mode
+    if (this.observerMode && this.qrCodeImage && this.qrCodeImage.complete) {
+      const padding = 20;
+      this.ctx.drawImage(this.qrCodeImage, padding, padding, 128, 128);
+    }
   }
 
   gameLoop() {

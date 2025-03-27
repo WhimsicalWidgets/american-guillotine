@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>Oligarch's American Adventure</title>
+  <title>Platformer Hair Selection</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     * {
@@ -14,26 +14,88 @@
       height: 100%;
       overflow: hidden;
       background: #000;
-      position: fixed; /* Prevents bounce on iOS */
+      position: fixed;
     }
     
     canvas {
-      touch-action: none; /* Prevents default touch behaviors */
+      touch-action: none;
       width: 100vw;
       height: 100vh;
       display: block;
     }
+
+    #hairSelect {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 100;
+    }
+
+    .hair-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .hair-option {
+      width: 100px;
+      height: 100px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 5px;
+      transition: border-color 0.3s;
+    }
+
+    .hair-option:hover {
+      border-color: white;
+    }
+
+    .hair-option.selected {
+      border-color: #4a90e2;
+    }
   </style>
 </head>
 <body>
+  <div id="hairSelect">
+    <div class="hair-options">
+      <img src="bezos2.png" class="hair-option" data-style="bald" alt="Bald">
+      <img src="dtzuck.png" class="hair-option" data-style="curly" alt="Curly">
+      <img src="thair.png" class="hair-option" data-style="trump" alt="Trump">
+      <img src="bezos1.png" class="hair-option" data-style="bald-cap" alt="Bald Cap">
+      <img src="dtzuck2.png" class="hair-option" data-style="curly-alt" alt="Curly Alt">
+      <img src="lemming1.png" class="hair-option" data-style="trump-visor" alt="Trump Visor">
+      <img src="felonius.png" class="hair-option" data-style="felonius" alt="Felonius">
+    </div>
+  </div>
+  
   <canvas id="gameCanvas"></canvas>
 
   <script type="module">
     import { Game } from './game.js';
     
+    let game;
     const canvas = document.getElementById('gameCanvas');
-    const game = new Game(canvas);
+    const hairSelect = document.getElementById('hairSelect');
+    const hairOptions = document.querySelectorAll('.hair-option');
+    
+    // Start game immediately with default hair
+    game = new Game(canvas, 'curly');
     game.start();
+
+    hairOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        hairOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        game.player.hairStyle = option.dataset.style;
+        game.player.loadHairImage();
+        hairSelect.style.display = 'none';
+      });
+    });
   </script>
 </body>
 </html>

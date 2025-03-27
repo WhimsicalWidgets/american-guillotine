@@ -5,13 +5,17 @@ import { TouchControls } from './touchControls.js';
 import { Guillotine } from './guillotine.js';
 
 export class Game {
-  constructor(canvas) {
+  constructor(canvas, hairStyle) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.setCanvasSize();
     
-    // Create player with better initial spawn position
-    this.player = new Player(100, 300);
+    // Initialize multiplayer
+    this.initializeMultiplayer();
+    
+    this.player = new Player(100, 300, hairStyle);
+    this.otherPlayers = new Map(); // Store other players
+    
     this.platforms = [
       // Base platforms with better spacing
       new Platform(0, 500, 800, 100),
@@ -70,6 +74,37 @@ export class Game {
     this.setupControls();
   }
 
+  async initializeMultiplayer() {
+    this.room = new WebsimSocket();
+    await this.room.initialize();
+
+    // Subscribe to presence changes (player positions)
+    this.room.subscribePresence((presence) => {
+      // Update other players
+      for (const [clientId, playerState] of Object.entries(presence)) {
+        if (clientId === this.room.clientId) continue; // Skip own player
+        
+        if (!this.otherPlayers.has(clientId)) {
+          // Create new player instance for newcomer
+          const newPlayer = new Player(playerState.x, playerState.y);
+          newPlayer.name = this.room.peers[clientId].username;
+          this.otherPlayers.set(clientId, newPlayer);
+        }
+        
+        // Update other player state
+        const player = this.otherPlayers.get(clientId);
+        Object.assign(player, playerState);
+      }
+
+      // Remove disconnected players
+      for (const [clientId] of this.otherPlayers) {
+        if (!presence[clientId]) {
+          this.otherPlayers.delete(clientId);
+        }
+      }
+    });
+  }
+
   setCanvasSize() {
     // Use device pixel ratio for sharp rendering on mobile
     const dpr = window.devicePixelRatio || 1;
@@ -114,10 +149,28 @@ export class Game {
 
     // Update player
     this.player.update();
+    
+    // Send player state to other clients
+    if (this.room) {
+      this.room.updatePresence({
+        x: this.player.x,
+        y: this.player.y,
+        velocityX: this.player.velocityX,
+        velocityY: this.player.velocityY,
+        isDead: this.player.isDead,
+        headOffset: this.player.headOffset,
+        hairSwirl: this.player.hairSwirl
+      });
+    }
 
-    // Update guillotines
+    // Update guillotines and check collisions for all players
     this.guillotines.forEach(guillotine => {
       guillotine.update(this.player);
+      
+      // Check guillotine collisions for other players
+      for (const otherPlayer of this.otherPlayers.values()) {
+        guillotine.update(otherPlayer);
+      }
     });
 
     // Handle platform collisions
@@ -127,13 +180,20 @@ export class Game {
         this.player.handleCollision(platform);
         hasCollision = true;
       }
+      
+      // Check platform collisions for other players
+      for (const otherPlayer of this.otherPlayers.values()) {
+        if (otherPlayer.checkCollision(platform)) {
+          otherPlayer.handleCollision(platform);
+        }
+      }
     });
 
     if (hasCollision) {
       this.player.isJumping = false;
     }
 
-    // Update camera
+    // Update camera - now follows local player only
     this.camera.update(this.player);
   }
 
@@ -150,8 +210,11 @@ export class Game {
     // Draw guillotines
     this.guillotines.forEach(guillotine => guillotine.draw(this.ctx));
     
-    // Draw player
+    // Draw all players
     this.player.draw(this.ctx);
+    for (const otherPlayer of this.otherPlayers.values()) {
+      otherPlayer.draw(this.ctx);
+    }
 
     this.ctx.restore();
 

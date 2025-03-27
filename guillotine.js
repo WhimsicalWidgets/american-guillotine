@@ -10,6 +10,10 @@ export class Guillotine {
     this.isDropping = false;
     this.resetTimer = 2000; // Time before blade resets
     this.triggerDistance = 100; // Distance at which blade drops
+    
+    // Add blade image
+    this.bladeImage = new Image();
+    this.bladeImage.src = 'guillotine-blade.png';
   }
 
   update(player) {
@@ -60,17 +64,16 @@ export class Guillotine {
     ctx.fillRect(this.x + this.width - 10, this.y, 10, this.height); // Right post
     ctx.fillRect(this.x, this.y, this.width, 10); // Top beam
 
-    // Draw blade
-    ctx.fillStyle = '#silver';
-    ctx.fillRect(this.x, this.bladeY, this.width, this.bladeHeight);
-    
-    // Draw blade edge
-    ctx.fillStyle = '#gray';
-    ctx.beginPath();
-    ctx.moveTo(this.x, this.bladeY + this.bladeHeight);
-    ctx.lineTo(this.x + this.width, this.bladeY + this.bladeHeight);
-    ctx.lineTo(this.x + this.width/2, this.bladeY + this.bladeHeight + 20);
-    ctx.closePath();
-    ctx.fill();
+    // Draw blade image if loaded
+    if (this.bladeImage.complete) {
+      ctx.save();
+      ctx.translate(this.x, this.bladeY);
+      ctx.drawImage(this.bladeImage, 0, 0, this.width, this.bladeHeight);
+      ctx.restore();
+    } else {
+      // Fallback if image not loaded
+      ctx.fillStyle = '#silver';
+      ctx.fillRect(this.x, this.bladeY, this.width, this.bladeHeight);
+    }
   }
 }
